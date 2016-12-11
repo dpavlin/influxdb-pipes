@@ -43,6 +43,8 @@ my @if;
 my @direction;
 
 my $lines;
+my $host_tags = $host;
+$host_tags =~ s/\./,domain=/;
 
 while(<$ifstat>) {
 	chomp;
@@ -65,7 +67,7 @@ while(<$ifstat>) {
 
 		foreach my $i ( 0 .. $#if ) {
 
-			my @tags = ( "host=$host", $ENV{TAGS} || 'no_tags=true' );
+			my @tags = ( "host=$host_tags", $ENV{TAGS} || 'no_tags=true' );
 
 			my $port = $if[$i];
 			if ( $port =~ m/if(\d\d)(\d\d\d\d)/ ) {
