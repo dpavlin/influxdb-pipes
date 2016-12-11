@@ -22,7 +22,7 @@ sub update_time {
 # FIXME add -A to pull interfaces if they go up and down
 # -l loopback
 # -a all
-my $cmd = qq{ifstat -s '$community@#$host' -b -n -t 1};
+my $cmd = qq{ifstat -s '$community@#$host' -a -l -b -n -t 1};
 warn "# $cmd\n";
 open(my $ifstat, '-|', $cmd);
 
@@ -52,6 +52,7 @@ while(<$ifstat>) {
 	s/^\s+//;
 	s/(\w) (in|out)/$1_$2/g;
 	my @v = split(/\s+/);
+	#warn "## [",join(' ',@v), "]\n";
 	if ( $v[0] eq 'Time' ) {
 		shift @v;
 		@if = @v;
@@ -67,19 +68,26 @@ while(<$ifstat>) {
 
 		foreach my $i ( 0 .. $#if ) {
 
-			my @tags = ( "host=$host_tags", $ENV{TAGS} || 'no_tags=true' );
-
-			my $port = $if[$i];
-			if ( $port =~ m/if(\d\d)(\d\d\d\d)/ ) {
-				push @tags, "prefix=$1,vlan=$2";
-			} elsif ( m/if(\d+)/ ) {
-				push @tags, "port=$1";
+			my $if = $if[$i];
+			
+			my @tags = ( "if=$if", "host=$host_tags", $ENV{TAGS} || 'no_tags=true' );
+=for later
+			if ( $if =~ m/if(\d\d)(\d\d\d\d)/ ) {
+				push @tags, "is_vlan=T,prefix=$1,vlan=$2";
+			} elsif ( $if =~ m/if(\d+)/ ) {
+				push @tags, "is_vlan=F,port=$1";
+			} else {
+				push @tags, "unknown_if=$if";
 			}
+=cut
+
+			my $v1 = int( $v[$i*2+1] * 1024 );
+			my $v2 = int( $v[$i*2+2] * 1024 );
 
 			print $curl "ifstat,", join(',', @tags),
-				" ", $direction[$i*2],   "=", ( $v[$i*2+1] * 1024 ),
-				",", $direction[$i*2+1], "=", ( $v[$i*2+2] * 1024 ),
-				" $time\n";
+				" ", $direction[$i*2],   "=${v1}i",
+				",", $direction[$i*2+1], "=${v2}i",
+				" $time\n" if $v1 < 100_000_000_000_000 && $v2 < 100_000_000_000_000;
 
 			$total += $v[$i*2+1];
 
