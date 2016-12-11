@@ -22,7 +22,7 @@ sub update_time {
 # FIXME add -A to pull interfaces if they go up and down
 # -l loopback
 # -a all
-my $cmd = qq{ifstat -s '$community@#$host' -a -l -b -n -t 1};
+my $cmd = qq{$ENV{SSH}ifstat -s '$community@#$host' -a -l -b -n -t 1};
 warn "# $cmd\n";
 open(my $ifstat, '-|', $cmd);
 
