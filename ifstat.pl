@@ -8,13 +8,13 @@ my $community = $ENV{COMMUNITY} || 'public';
 my $influx    = $ENV{INFLUX} || 'http://127.0.0.1:8086/write?db=snmp';
 
 use Data::Dump qw(dump);
-sub XXX { warn "XXX ",scalar @_, Data::Dump::dump(@_) };
+sub XXX { warn "XXX ", scalar(@_), Data::Dump::dump(@_), join(' ',caller), "\n"; };
 
 my ($sec,$min,$hour,$dd,$mm,$yyyy) = localtime(time); $mm++;
 my $time;
 use Time::Local;
 sub update_time {
-	warn "# time $yyyy-$mm-$dd $hour:$min:$sec $time\n";
+	#warn "# time $yyyy-$mm-$dd $hour:$min:$sec $time\n";
 	$time = timelocal($sec,$min,$hour,$dd,$mm-1,$yyyy) * 1000_000_000;
 	return $time;
 }
@@ -31,9 +31,9 @@ my $first_skipped = 0;
 my $curl;
 sub reopen_curl {
 	if ( $ENV{INFLUX} ) {
-		open($curl, '|-', qq( curl -i -XPOST $influx --data-binary \@- ));
+		open($curl, '|-', qq( curl -XPOST $influx --data-binary \@- ));
 	} else {
-		open($curl, '|-', 'cat');
+		open($curl, '|-', 'tee /dev/shm/curl.debug');
 	}
 }
 
@@ -58,7 +58,6 @@ while(<$ifstat>) {
 		@direction = map { s/\W+/_/g; s/^K//; $_ } @v;
 	} elsif ( $v[0] =~ m/^(\d\d):(\d\d):(\d\d)/ ) {
 		next unless $first_skipped++;
-XXX $stat;
 		$hour = $1; $min = $2; $sec = $3; update_time;
 
 		reopen_curl;
@@ -66,14 +65,18 @@ XXX $stat;
 
 		foreach my $i ( 0 .. $#if ) {
 
-			my $port = $if[$i];
-			my $vlan = '';
-			my $is_port = 'T';
-			$vlan = ",vlan=$1" if $port =~ m/if(\d\d\d\d\d\d)/;
+			my @tags = ( "host=$host", $ENV{TAGS} || 'no_tags=true' );
 
-			print $curl "ifstat,host=$host,port=$port$vlan ",
-				$direction[$i*2],   "=", $v[$i*2+1]   * 1024, ",",
-				$direction[$i*2+1], "=", $v[$i*2+2] * 1024,
+			my $port = $if[$i];
+			if ( $port =~ m/if(\d\d)(\d\d\d\d)/ ) {
+				push @tags, "prefix=$1,vlan=$2";
+			} elsif ( m/if(\d+)/ ) {
+				push @tags, "port=$1";
+			}
+
+			print $curl "ifstat,", join(',', @tags),
+				" ", $direction[$i*2],   "=", ( $v[$i*2+1] * 1024 ),
+				",", $direction[$i*2+1], "=", ( $v[$i*2+2] * 1024 ),
 				" $time\n";
 
 			$total += $v[$i*2+1];
