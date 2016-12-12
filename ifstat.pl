@@ -46,6 +46,8 @@ my $lines;
 my $host_tags = $host;
 $host_tags =~ s/\./,domain=/;
 
+my $last_hour = $hour;
+
 while(<$ifstat>) {
 	chomp;
 	#warn "# [$_]\n";
@@ -61,6 +63,12 @@ while(<$ifstat>) {
 		@direction = map { s/\W+/_/g; s/^K//; $_ } @v;
 	} elsif ( $v[0] =~ m/^(\d\d):(\d\d):(\d\d)/ ) {
 		next unless $first_skipped++;
+
+		if ( $last_hour != $hour ) {
+			($sec,$min,$hour,$dd,$mm,$yyyy) = localtime(time); $mm++;
+			$last_hour = $hour;
+		}
+
 		$hour = $1; $min = $2; $sec = $3; update_time;
 
 		reopen_curl;
