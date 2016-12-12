@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use autodie;
 
-my $host = shift @ARGV || die "usage: INFLUX=http://127.0.0.1:8086/write?db=snmp COMMUNITY=snmp-comminity $0 host";
+my $host = shift @ARGV || die "usage: INFLUX=http://127.0.0.1:8086/write?db=snmp COMMUNITY=snmp-community $0 host";
 my $community = $ENV{COMMUNITY} || 'public';
 my $influx    = $ENV{INFLUX} || 'http://127.0.0.1:8086/write?db=snmp';
 
