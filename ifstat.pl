@@ -72,7 +72,7 @@ while(<$ifstat>) {
 		$hour = $1; $min = $2; $sec = $3; update_time;
 
 		reopen_curl;
-		my $total;
+		my @total;
 
 		foreach my $i ( 0 .. $#if ) {
 
@@ -89,20 +89,29 @@ while(<$ifstat>) {
 			}
 =cut
 
-			my $v1 = int( $v[$i*2+1] * 1024 );
-			my $v2 = int( $v[$i*2+2] * 1024 );
+			my $v1 = $v[$i*2+1];
+			my $v2 = $v[$i*2+2];
 
-			print $curl "ifstat,", join(',', @tags),
+			if ( $v1 =~ m/^\d+\.\d++$/ && $v2 =~ m/^\d+\.\d++$/ ) {
+				
+				$total[0] += $v1;
+				$total[1] += $v2;
+
+				$v1 = int( $v1 * 1024 );
+				$v2 = int( $v2 * 1024 );
+	
+				print $curl "ifstat,", join(',', @tags),
 				" ", $direction[$i*2],   "=${v1}i",
 				",", $direction[$i*2+1], "=${v2}i",
 				" $time\n" if $v1 < 100_000_000_000_000 && $v2 < 100_000_000_000_000;
 
-			$total += $v[$i*2+1];
-
-			$lines++;
+				$lines++;
+			} else {
+				warn "IGNORED $if $v1 $v2\n";
+			}
 		}
 
-		warn "# $host ", $curl->tell, " total=$total\n";
+		warn "# $host ", $curl->tell, " totals: $total[0] $total[1]\n";
 		close($curl);
 	} else {
 		die "UNPARSED [$_]";
